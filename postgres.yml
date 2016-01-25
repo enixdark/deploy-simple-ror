@@ -1,0 +1,31 @@
+- name: Posgrest Database
+  user: vagrant
+  sudo: True
+  # sudo_user: postgres
+  hosts: postgres
+  vars_files:
+    - files/secrets.yml
+  tasks:
+    - name: install Posgrest sql
+      apt: name={{ item }} update_cache=yes cache_valid_time=3600
+      with_items: 
+        - postgresql
+        - libpq-dev
+        - python-psycopg2
+    - name: create user of postgres
+      postgresql_user:
+        name: "{{ database_user }}"
+        password: "{{ db_pass }}"
+      sudo: True
+      sudo_user: postgres
+    - name: create database
+      postgresql_db:
+        name: "{{ database_name }}"
+        owner: "{{ database_user }}"
+        encoding: UTF8
+        #lc_ctype: "{{ locale }}"
+        #lc_collate: "{{ locale }}"
+        template: template0
+      sudo: True
+      sudo_user: postgres
+

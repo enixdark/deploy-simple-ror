@@ -1,0 +1,4 @@
+USER: vagrant
+CURRENT_PATH: /home/vagrant
+APP_NAME: rails_app
+GIT_REPO: https://github.com/enixdark/CountriesCities.git

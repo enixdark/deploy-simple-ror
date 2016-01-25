@@ -1,0 +1,87 @@
+- name: deploy ruby and rails app with nginx and unicorn
+  hosts: aws
+  user: vagrant
+  sudo: True
+  vars_files:
+    - files/vars.yml
+  tasks:
+    - name: update and upgrade ubuntu 
+      apt: update_cache=yes cache_valid_time=3600
+
+    - name: "install nginx ,vim ,git"
+      apt:  name={{ item }} update_cache=yes
+      with_items:
+        - build-essential
+        - nginx
+        - vim
+        - git
+        - nodejs
+        
+    - name: link nodejs with name node
+      shell: "ln -s /usr/bin/nodejs /use/bin/node"
+
+    - name: install rvm 
+      script: scripts/bash/rvm.sh
+      environment:
+        GIT_REPO: "{{ GIT_REPO }}"
+        USER: "{{ USER }}"
+      sudo: No
+
+    - name: clone the project to deploy with git
+      script: scripts/bash/git.sh
+      environment:
+        GIT_REPO: "{{ GIT_REPO }}"
+      sudo: No
+
+    - name: copy nginx.conf to linux server
+      copy: src=files/nginx/nginx.conf dest=/etc/nginx/nginx.conf
+
+    - name: copy nginx conf app to linux server
+      template: src=files/nginx/rails_app dest=/etc/nginx/sites-available/default
+
+
+    - name: enable app configure 
+      file: >
+        dest=/etc/nginx/sites-enabled/default
+        src=/etc/nginx/sites-available/default
+        state=link
+      notify: restart nginx
+
+    - name: defined variable path of rails app
+      stat:
+        path: "{{ CURRENT_PATH }}/{{ APP_NAME }}"
+      register: folder
+
+    - name: unicorn conf to app
+      copy: >
+        src=files/unicorn/unicorn.rb
+        dest={{ CURRENT_PATH }}/{{ APP_NAME }}/config/unicorn.rb
+      sudo: No
+      when: folder.stat.exists
+
+    - name: unicorn supervisor
+      template: >
+        src=files/init.d/unicorn
+        dest=/etc/init.d/unicorn
+        mode=0755
+      notify: restart unicorn
+
+    - name: after start unicorn then restart nginx
+      debug: msg=Step2
+      notify: restart nginx
+
+  handlers:
+    - name: restart nginx
+      service:
+        name: nginx
+        state: restarted
+      sudo: True
+    - name: restart unicorn
+      supervisorctl:
+        name: unicorn
+        state: restarted
+      sudo: True
+
+
+
+
